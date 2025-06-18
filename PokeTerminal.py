@@ -51,16 +51,54 @@ class Pokedex:
         except requests.RequestException:
             return None
 
+    def wrap_text(self, text, width):
+        """Wrap text to specified width, handling word boundaries"""
+        if not text:
+            return [""]
+        
+        words = text.split()
+        lines = []
+        current_line = ""
+        
+        for word in words:
+            if len(current_line + " " + word) <= width:
+                if current_line:
+                    current_line += " " + word
+                else:
+                    current_line = word
+            else:
+                if current_line:
+                    lines.append(current_line)
+                    current_line = word
+                else:
+                    # Handle very long words
+                    lines.append(word[:width])
+                    current_line = word[width:]
+        
+        if current_line:
+            lines.append(current_line)
+        
+        return lines if lines else [""]
+
     def get_description(self, species_data: Dict[str, Any]) -> str:
         """Extract English description from species data"""
         if not species_data or 'flavor_text_entries' not in species_data:
             return "No description available."
+        
+        # Find English flavor text
+        for entry in species_data['flavor_text_entries']:
+            if entry['language']['name'] == 'en':
+                # Clean up the text (remove special characters)
+                text = entry['flavor_text'].replace('\n', ' ').replace('\f', ' ')
+                return ' '.join(text.split())
+        
+        return "No description available."
 
-    def get_ability_descriptions(self, abilities_data: list) -> str:
-        """Extract ability descriptions"""
+    def get_ability_descriptions(self, abilities_data: list) -> list:
+        """Extract ability descriptions as a list of strings"""
         if not abilities_data:
-            return "No abilities available."
-
+            return ["No abilities available."]
+        
         descriptions = []
         for ability_data in abilities_data:
             name = ability_data.get('name', 'Unknown').title()
@@ -72,8 +110,8 @@ class Pokedex:
                     description = ' '.join(description.split())
                     break
             descriptions.append(f"{name}: {description}")
-
-        return "\n".join(descriptions)
+        
+        return descriptions
 
     def get_egg_groups(self, species_data: Dict[str, Any]) -> str:
         """Extract egg groups"""
@@ -138,7 +176,7 @@ class Pokedex:
 
         return "Hardy (Neutral)"
 
-    def get_sprite_ascii(self, sprite_url: str, width: int = 70) -> str:
+    def get_sprite_ascii(self, sprite_url: str, width: int = 60) -> str:
         """Convert Pokemon sprite to ASCII art"""
         try:
             if not sprite_url:
@@ -185,15 +223,6 @@ class Pokedex:
 
         except Exception as e:
             return f"Error generating ASCII art: {str(e)}"
-
-        # Find English flavor text
-        for entry in species_data['flavor_text_entries']:
-            if entry['language']['name'] == 'en':
-                # Clean up the text (remove special characters)
-                text = entry['flavor_text'].replace('\n', ' ').replace('\f', ' ')
-                return ' '.join(text.split())
-
-        return "No description available."
 
     def format_types(self, types: list) -> str:
         """Format Pokemon types with colors"""
@@ -248,7 +277,7 @@ class Pokedex:
         return "\n".join(formatted_stats)
 
     def display_pokemon(self, data: Dict[str, Any]) -> None:
-        """Display Pokemon information in a formatted way"""
+        """Display Pokemon information in a formatted way with proper alignment"""
         try:
             pokemon = data['pokemon']
             species = data['species']
@@ -280,90 +309,107 @@ class Pokedex:
                 sprite_url = pokemon['sprites'].get('front_default')
 
             if sprite_url:
-                ascii_sprite = self.get_sprite_ascii(sprite_url, width=70)
+                ascii_sprite = self.get_sprite_ascii(sprite_url, width=50)
             else:
-                # Create a placeholder if no sprite is available
-                ascii_sprite = "     No sprite available\n" + "\n".join([" " * 70 for _ in range(25)])
+                ascii_sprite = "No sprite available"
+            
             sprite_lines = ascii_sprite.split('\n')
+            
+            # Match the header width - total content width is 113 chars
+            # Header line: "║ #006 - Charizard                                    Type: FIRE / FLYING                                                   ║"
+            # Content after "║ " and before " ║" = 113 characters
+            
+            sprite_width = 50  # Left side for sprite
+            info_width = 60    # Right side for info (50 + 3 for " │ " + 60 = 113)
+            
+            # Ensure sprite lines are consistent width
+            sprite_lines = [line[:sprite_width].ljust(sprite_width) for line in sprite_lines]
+            
+            # Pad sprite to minimum height if needed
+            min_sprite_height = 20
+            while len(sprite_lines) < min_sprite_height:
+                sprite_lines.append(" " * sprite_width)
 
+            # Build info section with proper text wrapping
+            info_lines = []
+            
+            # Basic info - handle long lines carefully
+            height_weight = f"Height: {height:.1f}m | Weight: {weight:.1f}kg"
+            info_lines.extend(self.wrap_text(height_weight, info_width))
+            
+            info_lines.extend(self.wrap_text(f"Egg Groups: {egg_groups}", info_width))
+            info_lines.extend(self.wrap_text(f"Growth Rate: {growth_rate}", info_width))
+            
+            # Handle nature which can be long
+            nature_lines = self.wrap_text(f"Optimal Nature: {optimal_nature}", info_width)
+            info_lines.extend(nature_lines)
+            info_lines.append("")
+            
+            # Abilities
+            info_lines.append("ABILITIES:")
+            for ability_desc in ability_descriptions:
+                wrapped_ability = self.wrap_text(ability_desc, info_width)
+                info_lines.extend(wrapped_ability)
+            info_lines.append("")
+            
+            # Description
+            info_lines.append("DESCRIPTION:")
+            description_lines = self.wrap_text(description, info_width)
+            info_lines.extend(description_lines)
+            info_lines.append("")
+            
+            # Base stats
+            info_lines.append("BASE STATS:")
+            stat_lines = stats.split('\n')
+            info_lines.extend(stat_lines)
+            
+            # Ensure info lines are consistent width - truncate and pad to exact width
+            info_lines = [line[:info_width].ljust(info_width) for line in info_lines]
+            
+            # Make both sections the same height
+            max_height = max(len(sprite_lines), len(info_lines))
+            
+            # Pad shorter section
+            while len(sprite_lines) < max_height:
+                sprite_lines.append(" " * sprite_width)
+            while len(info_lines) < max_height:
+                info_lines.append(" " * info_width)
+
+            # Build the header line manually to handle ANSI codes properly
+            import re
+            
+            # Calculate the exact spacing needed
+            name_section = f"#{id_num:03d} - {name:<50}"  # This part is 55 chars
+            type_section_start = "Type: "  # 6 chars
+            
+            # Remove ANSI codes to calculate visible length
+            types_visible = re.sub(r'\033\[[0-9;]*m', '', types)
+            
+            # Calculate remaining space: total 113 chars - 55 (name) - 6 (Type: ) - visible types length
+            # Subtract 2-3 more to account for small discrepancies
+            remaining_space = 113 - 55 - 6 - len(types_visible) - 3
+            padding = ' ' * max(0, remaining_space)  # Ensure no negative padding
+            
+            header_line = f"║ {name_section} {type_section_start}{types}{padding} ║"
+
+            # Display header
             print(f"""
 ╔═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                                                    POKÉDEX ENTRY                                                  ║
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════╣
-║ #{id_num:03d} - {name:<50} Type: {types:<30}                                    ║
+{header_line}
 ╠═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════╣""")
 
-            # Display sprite alongside basic info
-            info_lines = [
-                f"Height: {height:.1f}m | Weight: {weight:.1f}kg",
-                f"Egg Groups: {egg_groups}",
-                f"Growth Rate: {growth_rate}",
-                f"Optimal Nature: {optimal_nature}",
-                "",
-                "ABILITIES:",
-                ability_descriptions,
-                "",
-                "DESCRIPTION:",
-                description[:35] if description else "No description available",
-            ]
-
-            # Handle long descriptions
-            if description and len(description) > 35:
-                remaining = description[35:]
-                while remaining:
-                    line = remaining[:35]
-                    remaining = remaining[35:]
-                    info_lines.append(line)
-
-            # Add base stats to info section
-            info_lines.extend(["", "BASE STATS:"])
-            stat_lines = stats.split('\n')
-            info_lines.extend(stat_lines)
-
-            # Handle long descriptions and ability descriptions
-            if description and len(description) > 35:
-                remaining = description[35:]
-                while remaining:
-                    line = remaining[:35]
-                    remaining = remaining[35:]
-                    info_lines.append(line)
-
-            # Handle long ability descriptions
-            if ability_descriptions and len(ability_descriptions) > 35:
-                ability_lines = ability_descriptions.split('\n')
-                # Replace the single ability description line with split lines
-                ability_index = info_lines.index(ability_descriptions)
-                info_lines[ability_index:ability_index+1] = []
-                for ability_line in ability_lines:
-                    if len(ability_line) > 35:
-                        # Split long ability descriptions
-                        while ability_line:
-                            chunk = ability_line[:35]
-                            ability_line = ability_line[35:]
-                            info_lines.insert(ability_index, chunk)
-                            ability_index += 1
-                    else:
-                        info_lines.insert(ability_index, ability_line)
-                        ability_index += 1
-
-            # Display sprite and info side by side
-            max_lines = max(len(sprite_lines), len(info_lines))
-
-            for i in range(max_lines):
-                sprite_part = sprite_lines[i] if i < len(sprite_lines) else " " * 70
-                info_part = info_lines[i] if i < len(info_lines) else ""
-
-                # Ensure sprite part is exactly 70 characters
-                sprite_part = sprite_part[:70].ljust(70)
-                info_part = info_part[:35].ljust(35)
-
+            # Display sprite and info side by side with proper alignment
+            for i in range(max_height):
+                sprite_part = sprite_lines[i]
+                info_part = info_lines[i]
                 print(f"║ {sprite_part} │ {info_part} ║")
 
             print("╚═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════╝")
 
         except Exception as e:
             print(f"Error in display_pokemon: {e}")
-            print(f"Data structure: {data.keys() if data else 'No data'}")
             # Fallback to basic display
             if data and 'pokemon' in data:
                 pokemon = data['pokemon']
