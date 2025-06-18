@@ -51,6 +51,233 @@ class Pokedex:
         except requests.RequestException:
             return None
 
+    def get_learnset_data(self, pokemon_data: Dict[str, Any], generation: int) -> Dict[str, Any]:
+        """Fetch learnset data for a specific generation"""
+        try:
+            moves_data = {
+                'level_up': [],
+                'tm_hm': [],
+                'egg': [],
+                'tutor': []
+            }
+            
+            for move_entry in pokemon_data.get('moves', []):
+                move_name = move_entry['move']['name']
+                move_url = move_entry['move']['url']
+                
+                # Get detailed move information
+                move_response = requests.get(move_url)
+                if move_response.status_code != 200:
+                    continue
+                    
+                move_details = move_response.json()
+                
+                # Check if move exists in specified generation
+                move_generation = move_details.get('generation', {}).get('name', '')
+                
+                # Convert Roman numerals to numbers
+                roman_to_int = {
+                    'i': 1, 'ii': 2, 'iii': 3, 'iv': 4, 'v': 5,
+                    'vi': 6, 'vii': 7, 'viii': 8, 'ix': 9
+                }
+                
+                gen_number = 999  # Default for unknown generations
+                if move_generation:
+                    gen_part = move_generation.split('-')[-1].lower()
+                    gen_number = roman_to_int.get(gen_part, 999)
+                
+                if gen_number > generation:
+                    continue
+                
+                # Process version group details for the specified generation
+                for version_detail in move_entry.get('version_group_details', []):
+                    version_group = version_detail['version_group']['name']
+                    learn_method = version_detail['move_learn_method']['name']
+                    level_learned = version_detail.get('level_learned_at', 0)
+                    
+                    # Map generations to version groups
+                    gen_version_groups = {
+                        1: ['red-blue', 'yellow'],
+                        2: ['gold-silver', 'crystal'],
+                        3: ['ruby-sapphire', 'emerald', 'firered-leafgreen'],
+                        4: ['diamond-pearl', 'platinum', 'heartgold-soulsilver'],
+                        5: ['black-white', 'black-2-white-2'],
+                        6: ['x-y', 'omega-ruby-alpha-sapphire'],
+                        7: ['sun-moon', 'ultra-sun-ultra-moon'],
+                        8: ['sword-shield'],
+                        9: ['scarlet-violet']
+                    }
+                    
+                    if version_group not in gen_version_groups.get(generation, []):
+                        continue
+                    
+                    # Organize by learn method
+                    move_info = {
+                        'name': move_name.replace('-', ' ').title(),
+                        'type': move_details.get('type', {}).get('name', 'unknown'),
+                        'power': move_details.get('power'),
+                        'accuracy': move_details.get('accuracy'),
+                        'pp': move_details.get('pp'),
+                        'level': level_learned,
+                        'category': move_details.get('damage_class', {}).get('name', 'unknown')
+                    }
+                    
+                    if learn_method == 'level-up':
+                        moves_data['level_up'].append(move_info)
+                    elif learn_method in ['machine', 'tm']:
+                        moves_data['tm_hm'].append(move_info)
+                    elif learn_method == 'egg':
+                        moves_data['egg'].append(move_info)
+                    elif learn_method == 'tutor':
+                        moves_data['tutor'].append(move_info)
+            
+            # Sort level-up moves by level
+            moves_data['level_up'].sort(key=lambda x: x['level'])
+            
+            # Remove duplicates
+            for category in moves_data:
+                seen = set()
+                unique_moves = []
+                for move in moves_data[category]:
+                    move_key = move['name']
+                    if move_key not in seen:
+                        seen.add(move_key)
+                        unique_moves.append(move)
+                moves_data[category] = unique_moves
+            
+            return moves_data
+            
+        except Exception as e:
+            print(f"Error fetching learnset data: {e}")
+            return None
+
+    def format_move_table(self, moves: list, title: str) -> str:
+        """Format moves in a nice table"""
+        if not moves:
+            return f"{title}: None"
+        
+        lines = [f"{title}:"]
+        lines.append("─" * 60)
+        
+        for move in moves[:20]:  # Limit to first 20 moves to avoid overwhelming output
+            name = move['name'][:20].ljust(20)  # Truncate long names
+            move_type = move['type'].upper()[:8].ljust(8)
+            power = str(move['power'] or '--').ljust(4)
+            accuracy = str(move['accuracy'] or '--').ljust(4)
+            pp = str(move['pp'] or '--').ljust(3)
+            category = move['category'][:8].ljust(8)
+            
+            if 'level' in move and move['level'] > 0:
+                level = f"Lv.{move['level']:>2}".ljust(5)
+                line = f"{level} {name} {move_type} {power} {accuracy} {pp} {category}"
+            else:
+                line = f"     {name} {move_type} {power} {accuracy} {pp} {category}"
+            
+            lines.append(line)
+        
+        if len(moves) > 20:
+            lines.append(f"... and {len(moves) - 20} more moves")
+        
+        return '\n'.join(lines)
+
+    def display_specific_moves(self, pokemon_name: str, generation: int, move_type: str, moves_data: Dict[str, Any]) -> None:
+        """Display specific type of moves (level-up, egg, etc.) in a formatted way"""
+        try:
+            # Map command to data key and display title
+            move_categories = {
+                'learnset': ('level_up', 'LEVEL-UP MOVES'),
+                'tm': ('tm_hm', 'TM/HM MOVES'), 
+                'egg': ('egg', 'EGG MOVES'),
+                'tutor': ('tutor', 'MOVE TUTOR'),
+                'moves': ('all', 'ALL MOVES')  # Special case for showing everything
+            }
+            
+            if move_type not in move_categories:
+                print(f"❌ Unknown move type: {move_type}")
+                return
+                
+            data_key, title = move_categories[move_type]
+            
+            # Handle the 'moves' command (show all categories)
+            if move_type == 'moves':
+                self.display_learnset(pokemon_name, generation, moves_data)
+                return
+            
+            # Show specific move category only
+            moves = moves_data.get(data_key, [])
+            
+            print(f"""
+╔═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════╗
+║                                        {pokemon_name.upper()} - GENERATION {generation} {title}                                        ║
+╠═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════╣""")
+            
+            if not moves:
+                # No moves found message
+                no_moves_msg = f"No {title.lower()} found for Generation {generation}"
+                content_width = 113
+                formatted_line = no_moves_msg[:content_width].ljust(content_width)
+                print(f"║ {formatted_line} ║")
+            else:
+                # Format and display moves - but ONLY this category
+                move_table = self.format_move_table(moves, title)
+                content_lines = move_table.split('\n')
+                
+                # Format each line to fit within borders
+                content_width = 113
+                for line in content_lines:
+                    formatted_line = line[:content_width].ljust(content_width)
+                    print(f"║ {formatted_line} ║")
+            
+            print("╚═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════╝")
+            
+        except Exception as e:
+            print(f"Error displaying {move_type} moves: {e}")
+
+    def display_learnset(self, pokemon_name: str, generation: int, moves_data: Dict[str, Any]) -> None:
+        """Display Pokemon learnset in a formatted way"""
+        try:
+            print(f"""
+╔═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════╗
+║                                              {pokemon_name.upper()} - GENERATION {generation} LEARNSET                                              ║
+╠═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════╣""")
+            
+            # Build learnset content
+            content_lines = []
+            
+            # Level-up moves
+            if moves_data['level_up']:
+                level_moves = self.format_move_table(moves_data['level_up'], "LEVEL-UP MOVES")
+                content_lines.extend(level_moves.split('\n'))
+                content_lines.append("")
+            
+            # TM/HM moves
+            if moves_data['tm_hm']:
+                tm_moves = self.format_move_table(moves_data['tm_hm'], "TM/HM MOVES")
+                content_lines.extend(tm_moves.split('\n'))
+                content_lines.append("")
+            
+            # Egg moves
+            if moves_data['egg']:
+                egg_moves = self.format_move_table(moves_data['egg'], "EGG MOVES")
+                content_lines.extend(egg_moves.split('\n'))
+                content_lines.append("")
+            
+            # Tutor moves
+            if moves_data['tutor']:
+                tutor_moves = self.format_move_table(moves_data['tutor'], "MOVE TUTOR")
+                content_lines.extend(tutor_moves.split('\n'))
+            
+            # Format each line to fit within borders
+            content_width = 113
+            for line in content_lines:
+                formatted_line = line[:content_width].ljust(content_width)
+                print(f"║ {formatted_line} ║")
+            
+            print("╚═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════╝")
+            
+        except Exception as e:
+            print(f"Error displaying learnset: {e}")
+
     def wrap_text(self, text, width):
         """Wrap text to specified width, handling word boundaries"""
         if not text:
@@ -176,7 +403,7 @@ class Pokedex:
 
         return "Hardy (Neutral)"
 
-    def get_sprite_ascii(self, sprite_url: str, width: int = 60) -> str:
+    def get_sprite_ascii(self, sprite_url: str, width: int = 50) -> str:
         """Convert Pokemon sprite to ASCII art"""
         try:
             if not sprite_url:
@@ -316,9 +543,6 @@ class Pokedex:
             sprite_lines = ascii_sprite.split('\n')
             
             # Match the header width - total content width is 113 chars
-            # Header line: "║ #006 - Charizard                                    Type: FIRE / FLYING                                                   ║"
-            # Content after "║ " and before " ║" = 113 characters
-            
             sprite_width = 50  # Left side for sprite
             info_width = 60    # Right side for info (50 + 3 for " │ " + 60 = 113)
             
@@ -379,18 +603,18 @@ class Pokedex:
             import re
             
             # Calculate the exact spacing needed
-            name_section = f"#{id_num:03d} - {name:<50}"  # This part is 55 chars
-            type_section_start = "Type: "  # 6 chars
+            name_section = f"#{id_num:03d} - {name}"  # Name without padding
+            type_section = f"Type: {types}"
             
-            # Remove ANSI codes to calculate visible length
-            types_visible = re.sub(r'\033\[[0-9;]*m', '', types)
+            # Remove ANSI codes to calculate visible length of type section
+            type_section_visible = re.sub(r'\033\[[0-9;]*m', '', type_section)
             
-            # Calculate remaining space: total 113 chars - 55 (name) - 6 (Type: ) - visible types length
-            # Subtract 2-3 more to account for small discrepancies
-            remaining_space = 113 - 55 - 6 - len(types_visible) - 3
-            padding = ' ' * max(0, remaining_space)  # Ensure no negative padding
+            # Calculate spacing needed between name and type to right-align type
+            # Total content width is 113, account for borders and spacing
+            available_space = 113 - len(name_section) - len(type_section_visible)
+            padding = ' ' * max(0, available_space)
             
-            header_line = f"║ {name_section} {type_section_start}{types}{padding} ║"
+            header_line = f"║ {name_section}{padding}{type_section} ║"
 
             # Display header
             print(f"""
@@ -433,30 +657,90 @@ class Pokedex:
     def run(self):
         """Main application loop"""
         print("""
-╔═══════════════════════════════════════════════════════════════════════════════╗
+╔═══════════════════════════════════════════════════════════════════════════════════════════════════════════╗
 ║                              POKÉDEX TERMINAL                                 ║
 ║                         Gotta catch 'em all!                                  ║
-╚═══════════════════════════════════════════════════════════════════════════════╝
+╚═══════════════════════════════════════════════════════════════════════════════════════════════════════════╝
 
 Welcome to the Pokédex Terminal!
 Search for any Pokémon by name or ID number.
+
+MOVE COMMANDS (after viewing a Pokémon):
+• 'moves gen X' - Show all moves for generation X
+• 'learnset gen X' - Show only level-up moves
+• 'tm gen X' - Show only TM/HM moves  
+• 'egg gen X' - Show only egg moves
+• 'tutor gen X' - Show only move tutor moves
+
 Type 'quit' or 'exit' to close the application.
 
         """)
 
+        current_pokemon = None
+
         while True:
             try:
-                query = input("\n🔍 Enter Pokémon name or ID: ").strip()
+                if current_pokemon:
+                    query = input(f"\n🔍 Enter Pokémon name/ID or command (current: {current_pokemon['name'].title()}): ").strip()
+                else:
+                    query = input("\n🔍 Enter Pokémon name or ID: ").strip()
 
                 if query.lower() in ['quit', 'exit', 'q']:
                     print("\nThanks for using Pokédex Terminal! Goodbye! 👋")
                     break
 
                 if not query:
-                    print("Please enter a Pokémon name or ID.")
+                    print("Please enter a Pokémon name, ID, or command.")
                     continue
 
-                self.search_pokemon(query)
+                # Check for move commands first
+                if any(query.lower().startswith(cmd) for cmd in ['moves gen', 'learnset gen', 'tm gen', 'egg gen', 'tutor gen']):
+                    if not current_pokemon:
+                        print("❌ Please search for a Pokémon first before viewing moves!")
+                        continue
+                    
+                    try:
+                        # Parse the command
+                        parts = query.lower().split()
+                        if len(parts) >= 3 and parts[1] == 'gen':
+                            move_type = parts[0]
+                            generation = int(parts[2])
+                            
+                            if generation < 1 or generation > 9:
+                                print("❌ Please specify a generation between 1-9")
+                                continue
+                            
+                            print(f"\n🔍 Loading Generation {generation} {move_type} for {current_pokemon['name'].title()}...")
+                            moves_data = self.get_learnset_data(current_pokemon, generation)
+                            
+                            if moves_data:
+                                self.display_specific_moves(current_pokemon['name'], generation, move_type, moves_data)
+                            else:
+                                print("❌ Could not load move data.")
+                        else:
+                            print("❌ Invalid format. Use 'command gen X' (e.g., 'tm gen 3')")
+                            
+                    except ValueError:
+                        print("❌ Invalid generation number")
+                    except Exception as e:
+                        print(f"❌ Error loading moves: {e}")
+                    
+                    continue  # Skip to next iteration, don't process as Pokemon search
+
+                # Regular Pokemon search
+                print(f"\n🔍 Searching for: {query}")
+                print("Loading...")
+
+                data = self.get_pokemon_data(query)
+
+                if data is None:
+                    print(f"\n❌ Pokemon '{query}' not found!")
+                    print("Try searching by name (e.g., 'pikachu') or ID number (e.g., '25')")
+                    current_pokemon = None
+                    continue
+
+                self.display_pokemon(data)
+                current_pokemon = data['pokemon']  # Store current pokemon for learnset commands
 
             except KeyboardInterrupt:
                 print("\n\nThanks for using Pokédex Terminal! Goodbye! 👋")
