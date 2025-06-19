@@ -1,16 +1,16 @@
-# Pokédex Terminal App 🎮
+# Pokédex Terminal App 
 
 Command-line Pokédex application that fetches data from the PokéAPI and displays Pokémon information.
 
-## Features ✨
+## Features 
 
-- **Complete Pokémon Information**: Search by name or ID to get detailed stats, abilities, types, and descriptions
-- **Comprehensive Stats**: View base stats with visual bar representations
-- **Ability Descriptions**: Get details of each Pokémon's abilities
+- **Pokémon Information**: Search by name or ID to get detailed stats, abilities, types, and descriptions
+- **Stats**: View base stats with visual bar representations
+- **Abilities **: Get details of each Pokémon's abilities
 - **Nature Recommendations**: Automatically show optimal natures based on stat distribution
 - **Breeding Information**: Egg groups and growth rate data
 
-## Installation 📦
+## Installation
 
 ### Prerequisites
 
@@ -46,12 +46,12 @@ pip install requests pillow
    chmod +x pokedex.py
    ```
 
-## Usage 🚀
+## Usage 
 
 ### Running the Application
 
 ```bash
-python3 pokedex.py
+python3 main.py
 ```
 
 Or if made executable:
@@ -81,13 +81,10 @@ Type any of the following to exit:
 - `q`
 - `Ctrl+C`
 
-## Features in Detail 📋
+## Features
 
 ### ASCII Art Generation
 The app converts official Pokémon sprites into ASCII art using brightness mapping, creating unique visual representations for each Pokémon in your terminal.
-
-### Nature Recommendations
-Automatically calculates the optimal nature for each Pokémon based on their base stat distribution, helping competitive players make informed decisions.
 
 ### Comprehensive Data Display
 - **Basic Info**: Height, weight, types with color coding
@@ -98,13 +95,13 @@ Automatically calculates the optimal nature for each Pokémon based on their bas
 
 ### Color-Coded Types
 Each Pokémon type is displayed with appropriate colors:
-- 🔥 Fire (Red)
-- 💧 Water (Blue)  
-- ⚡ Electric (Yellow)
-- 🌿 Grass (Green)
+- Fire (Red)
+- Water (Blue)  
+- Electric (Yellow)
+- Grass (Green)
 
 
-## Technical Details 🔧
+## Technical Details
 
 ### Dependencies
 
@@ -117,7 +114,7 @@ Each Pokémon type is displayed with appropriate colors:
 
 ### API Usage
 
-This application uses the free [PokéAPI](https://pokeapi.co/) service to fetch Pokémon data. No API key required!
+This application uses the free [PokéAPI](https://pokeapi.co/) service to fetch Pokémon data. (No API key required)
 
 ### Performance Notes
 
@@ -153,32 +150,23 @@ chmod +x pokedex.py
 - **"Failed to load sprite"**: Network issue with image download
 - **"No description available"**: Some Pokémon may have limited data
 
-## Contributing 🤝
+## Contributing 
 
 Contributions are welcome! Areas for improvement:
 
 - Add more detailed move information
-- Include evolution chain data
 - Add support for different Pokémon forms
 - Improve ASCII art quality
 - Add caching for offline usage
 - Support for multiple languages
 
-## License 📄
 
 This project is open source. Please respect the PokéAPI's terms of service when using this application.
 
 ## Acknowledgments 🙏
 
 - [PokéAPI](https://pokeapi.co/) for providing comprehensive Pokémon data
-- The Pokémon Company for creating these amazing creatures
-- ASCII art inspiration from terminal art communities
-
-## Version History 📋
-
-- **v1.0**: Initial release with basic Pokémon lookup
-- **Current**: Full-featured terminal Pokédex with ASCII art and comprehensive data
+- The Pokémon Company
 
 ---
-
-**Gotta catch 'em all!** 🎯
+�
