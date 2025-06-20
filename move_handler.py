@@ -15,6 +15,60 @@ class MoveHandler:
         self.api_client = PokeAPIClient()
         self.formatter = DisplayFormatter()
     
+    def handle_move_query(self, query: str, pokemon_data: Dict[str, Any]) -> None:
+        """Handle move-related query parsing and execution"""
+        try:
+            # Parse the query to extract command, generation, and optional game
+            # Expected formats: 
+            # "moves gen 3", "moves gen 3 emerald"
+            # "learnset gen 4", "tm gen 3 emerald", etc.
+            
+            parts = query.lower().split()
+            
+            if len(parts) < 3:  # Need at least: command + "gen" + number
+                print("❌ Invalid format! Use: <command> gen <number> [game]")
+                print("   Examples: 'moves gen 3', 'tm gen 3 emerald', 'learnset gen 4 platinum'")
+                return
+            
+            command = parts[0]  # moves, learnset, tm, egg, tutor
+            gen_word = parts[1]  # should be "gen"
+            gen_str = parts[2]   # generation number
+            
+            if gen_word != "gen":
+                print("❌ Invalid format! Use: <command> gen <number> [game]")
+                return
+            
+            # Parse generation number
+            try:
+                generation = int(gen_str)
+                if generation < 1 or generation > 9:
+                    print("❌ Generation must be between 1 and 9!")
+                    return
+            except ValueError:
+                print("❌ Invalid generation number!")
+                return
+            
+            # Extract optional game name
+            specific_game = None
+            if len(parts) > 3:
+                specific_game = "-".join(parts[3:])  # Handle multi-word games like "ultra-sun-ultra-moon"
+            
+            print(f"\n🔍 Loading {command} data for {pokemon_data['name'].title()} (Generation {generation}" + 
+                  (f", {specific_game.title()}" if specific_game else "") + ")...")
+            
+            # Get move data
+            moves_data = self.get_learnset_data(pokemon_data, generation, specific_game)
+            
+            if not moves_data:
+                print("❌ Could not load move data")
+                return
+            
+            # Display the appropriate moves based on command
+            self.display_specific_moves(pokemon_data['name'], generation, command, moves_data)
+            
+        except Exception as e:
+            print(f"❌ Error processing move query: {e}")
+    
     def get_learnset_data(self, pokemon_data: Dict[str, Any], generation: int, specific_game: str = None) -> Dict[str, Any]:
         """Fetch learnset data for a specific generation and optionally a specific game"""
         try:
