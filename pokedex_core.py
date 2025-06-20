@@ -150,8 +150,8 @@ class PokedexCore:
                 print(f"Pokemon: {pokemon.get('name', 'Unknown')}")
                 print(f"ID: {pokemon.get('id', 'Unknown')}")
 
-    def search_pokemon(self, query: str) -> None:
-        """Search for a Pokemon and display its information"""
+    def search_pokemon(self, query: str) -> Dict[str, Any]:
+        """Search for a Pokemon and display its information, return the Pokemon data"""
         print(f"\n🔍 Searching for: {query}")
         print("Loading...")
 
@@ -160,6 +160,9 @@ class PokedexCore:
         if data is None:
             print(f"\n❌ Pokemon '{query}' not found!")
             print("Try searching by name (e.g., 'pikachu') or ID number (e.g., '25')")
-            return
+            return None
 
         self.display_pokemon(data)
+        
+        # Return the Pokemon data so it can be stored as current_pokemon
+        return data['pokemon']
