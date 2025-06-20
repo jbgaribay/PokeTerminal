@@ -166,7 +166,7 @@ class EvolutionHandler:
         return req_text
     
     def display_evolution_chain(self, pokemon_name: str, evolution_stages: List[Dict[str, Any]]) -> None:
-        """Display the evolution chain with ASCII sprites vertically"""
+        """Display the evolution chain with ASCII sprites and arrows"""
         try:
             if not evolution_stages:
                 print("❌ No evolution data found")
@@ -175,96 +175,43 @@ class EvolutionHandler:
             # Sort stages by stage number
             stages = sorted(evolution_stages, key=lambda x: x['stage'])
             
-            # Use consistent width with rest of program - 113 characters
-            border_width = 113
+            # Use EVEN WIDER border for evolution chains - 220 characters!
+            border_width = 220
             
             print(f"""
-╔═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════╗
-║                                          {pokemon_name.upper()} - EVOLUTION CHAIN                                          ║
-╠═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════╣""")
+╔══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════╗
+║                                                                                            {pokemon_name.upper()} - EVOLUTION CHAIN                                                                                            ║
+╠══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════╣""")
             
             if len(stages) == 1:
                 # No evolutions
                 single_stage = stages[0]
                 pokemon_display_name = single_stage['name'].title()
                 
-                print("║                                                                                                                 ║")
+                print("║" + " " * (border_width-2) + "║")
                 no_evo_text = f"{pokemon_display_name} does not evolve"
                 no_evo_line = no_evo_text.center(border_width-2)
                 print(f"║ {no_evo_line} ║")
-                print("║                                                                                                                 ║")
+                print("║" + " " * (border_width-2) + "║")
                 
-                # Display single HUGE sprite
+                # Display single large sprite
                 if single_stage.get('pokemon_data'):
                     sprite_url = single_stage['pokemon_data'].get('sprites', {}).get('front_default')
                     if sprite_url:
                         large_sprite = self.formatter.get_sprite_ascii(sprite_url, width=80)
                         sprite_lines = large_sprite.split('\n')
-                        for line in sprite_lines[:35]:  # Allow tall sprites
+                        for line in sprite_lines[:30]:  # Limit height
                             padded_line = line[:80].center(border_width-2)
                             print(f"║ {padded_line} ║")
                 
             else:
-                # Multiple stages - display vertically
-                self._display_evolution_stages_vertical(stages, border_width)
+                # Multiple stages - display evolution chain
+                self._display_evolution_stages_wide(stages, border_width)
             
-            print("╚═══════════════════════════════════════════════════════════════════════════════════════════════════════════════════╝")
+            print("╚══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════╝")
             
         except Exception as e:
             print(f"Error displaying evolution chain: {e}")
-    
-    def _display_evolution_stages_vertical(self, stages: List[Dict[str, Any]], border_width: int) -> None:
-        """Display evolution stages vertically with huge sprites"""
-        try:
-            for i, stage in enumerate(stages):
-                pokemon_name = stage['name'].title()
-                
-                # Add spacing between stages
-                if i > 0:
-                    print("║                                                                                                                 ║")
-                    print("║                                                                                                                 ║")
-                    
-                    # Display evolution requirement and arrow
-                    req_text = self.format_evolution_requirement(stage)
-                    if req_text:
-                        req_line = req_text.replace('\n', ' ')
-                        req_centered = req_line.center(border_width-2)
-                        print(f"║ {req_centered} ║")
-                    
-                    # Big vertical arrow
-                    arrow = "▼".center(border_width-2)
-                    print(f"║ {arrow} ║")
-                    print("║                                                                                                                 ║")
-                
-                # Display Pokemon name
-                name_line = pokemon_name.center(border_width-2)
-                print(f"║ {name_line} ║")
-                print("║                                                                                                                 ║")
-                
-                # Display MASSIVE sprite - now we can use the full width!
-                if stage.get('pokemon_data'):
-                    sprite_url = stage['pokemon_data'].get('sprites', {}).get('front_default')
-                    if sprite_url:
-                        # Generate HUGE sprite with full width minus borders
-                        huge_sprite = self.formatter.get_sprite_ascii(sprite_url, width=100)
-                        sprite_lines = huge_sprite.split('\n')
-                        
-                        for line in sprite_lines[:40]:  # Allow very tall sprites
-                            # Center each line in the border
-                            sprite_line = line[:100].center(border_width-2)
-                            print(f"║ {sprite_line} ║")
-                    else:
-                        no_sprite_line = "No sprite available".center(border_width-2)
-                        print(f"║ {no_sprite_line} ║")
-                else:
-                    no_data_line = "Pokemon data not available".center(border_width-2)
-                    print(f"║ {no_data_line} ║")
-                
-                # Add spacing after each stage
-                print("║                                                                                                                 ║")
-                
-        except Exception as e:
-            print(f"Error displaying vertical evolution stages: {e}")
     
     def _display_evolution_stages_wide(self, stages: List[Dict[str, Any]], border_width: int) -> None:
         """Display evolution stages with much wider layout"""
