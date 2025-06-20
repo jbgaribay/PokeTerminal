@@ -73,6 +73,7 @@ class PokedexTerminal:
 ║ • 'egg gen X [game]' - Show only egg moves                                                                    ║
 ║ • 'tutor gen X [game]' - Show only move tutor moves                                                           ║
 ║ • 'location gen X [game]' - Show encounter locations for generation/game                                      ║
+║ • 'location <game>' - Show encounter locations for specific game                                              ║
 ║ • 'evo' - Show evolution chain with ASCII sprites                                                             ║
 ║                                                                                                                 ║
 ║ EXAMPLES:                                                                                                       ║
@@ -80,6 +81,7 @@ class PokedexTerminal:
 ║ • 'tm gen 3 emerald' - Only Emerald TM moves                                                                  ║
 ║ • 'tutor gen 7 ultra-sun-ultra-moon' - Move tutor moves from Ultra Sun/Moon                                  ║
 ║ • 'location gen 4 platinum' - Where to find this Pokémon in Platinum                                         ║
+║ • 'location emerald' - Where to find this Pokémon in Emerald                                                 ║
 ║ • 'evo' - See the complete evolution chain                                                                    ║
 ║ • 'compare bulbasaur venusaur' - Compare starter with its final evolution                                     ║
 ║                                                                                                                 ║
@@ -168,8 +170,9 @@ class PokedexTerminal:
                 self.handle_move_command(query, self.current_pokemon)
             return True
         
-        # Location command
-        if query_lower.startswith('location gen'):
+        # Location command - FIXED to handle both formats
+        if (query_lower.startswith('location gen') or 
+            (query_lower.startswith('location ') and not query_lower.startswith('location gen'))):
             print("DEBUG: Location command detected!")  # DEBUG LINE
             if not self.current_pokemon:
                 print("❌ Please search for a Pokémon first before viewing locations!")

@@ -15,6 +15,84 @@ class LocationHandler:
         self.api_client = PokeAPIClient()
         self.formatter = DisplayFormatter()
     
+    def handle_location_query(self, query: str, pokemon_data: Dict[str, Any]) -> None:
+        """Handle location query parsing and execution"""
+        try:
+            # Parse the query to extract generation and optional game
+            # Expected formats: 
+            # "location gen 3", "location gen 3 emerald"
+            # Also handle: "location emerald", "location firered" (infer generation)
+            
+            parts = query.lower().split()
+            
+            if len(parts) < 2:
+                print("❌ Invalid format! Use: location gen <number> [game] OR location <game>")
+                print("   Examples: 'location gen 3', 'location gen 3 emerald', 'location emerald'")
+                return
+            
+            generation = None
+            specific_game = None
+            
+            if parts[1] == "gen":
+                # Format: "location gen 3 [emerald]"
+                if len(parts) < 3:
+                    print("❌ Invalid format! Use: location gen <number> [game]")
+                    return
+                
+                try:
+                    generation = int(parts[2])
+                    if generation < 1 or generation > 9:
+                        print("❌ Generation must be between 1 and 9!")
+                        return
+                except ValueError:
+                    print("❌ Invalid generation number!")
+                    return
+                
+                # Extract optional game name
+                if len(parts) > 3:
+                    specific_game = "-".join(parts[3:])
+            else:
+                # Format: "location emerald" - infer generation from game
+                specific_game = "-".join(parts[1:])
+                generation = self._infer_generation_from_game(specific_game)
+                
+                if generation is None:
+                    print(f"❌ Could not determine generation for game '{specific_game}'")
+                    print("   Try using: location gen <number> <game>")
+                    return
+            
+            print(f"\n🔍 Loading location data for {pokemon_data['name'].title()} (Generation {generation}" + 
+                  (f", {specific_game.title()}" if specific_game else "") + ")...")
+            
+            # Get location data
+            location_data = self.get_location_data(pokemon_data, generation, specific_game)
+            
+            if not location_data:
+                print("❌ Could not load location data")
+                return
+            
+            # Display the locations
+            self.display_locations(pokemon_data['name'], generation, location_data)
+            
+        except Exception as e:
+            print(f"❌ Error processing location query: {e}")
+    
+    def _infer_generation_from_game(self, game_name: str) -> int:
+        """Infer generation number from game name"""
+        game_to_generation = {
+            'red': 1, 'blue': 1, 'yellow': 1,
+            'gold': 2, 'silver': 2, 'crystal': 2,
+            'ruby': 3, 'sapphire': 3, 'emerald': 3, 'firered': 3, 'leafgreen': 3,
+            'diamond': 4, 'pearl': 4, 'platinum': 4, 'heartgold': 4, 'soulsilver': 4,
+            'black': 5, 'white': 5, 'black-2': 5, 'white-2': 5,
+            'x': 6, 'y': 6, 'omega-ruby': 6, 'alpha-sapphire': 6,
+            'sun': 7, 'moon': 7, 'ultra-sun': 7, 'ultra-moon': 7,
+            'sword': 8, 'shield': 8,
+            'scarlet': 9, 'violet': 9
+        }
+        
+        return game_to_generation.get(game_name.lower())
+    
     def get_location_data(self, pokemon_data: Dict[str, Any], generation: int, specific_game: str = None) -> Dict[str, Any]:
         """Fetch location data for a specific generation and optionally a specific game"""
         try:
