@@ -10,6 +10,7 @@ from location_handler import LocationHandler
 from evolution_handler import EvolutionHandler
 from comparison_handler import ComparisonHandler
 from route_handler import RouteHandler
+from breeding_handler import BreedingHandler
 
 class PokedexTerminal:
     """Main application class that coordinates all functionality"""
@@ -21,6 +22,7 @@ class PokedexTerminal:
         self.evolution_handler = EvolutionHandler()
         self.comparison_handler = ComparisonHandler()
         self.route_handler = RouteHandler()
+        self.breeding_handler = BreedingHandler()
         self.current_pokemon = None
     
     def handle_comparison_command(self, query: str) -> None:
@@ -74,8 +76,10 @@ class PokedexTerminal:
 ║ • 'tutor gen X [game]' - Show only move tutor moves                                                           ║
 ║ • 'location gen X [game]' - Show encounter locations for generation/game                                      ║
 ║ • 'location <game>' - Show encounter locations for specific game                                              ║
-║ • 'evo' - Show evolution chain with ASCII sprites                                                             ║
-║                                                                                                                 ║
+║ • 'evo' - Show evolution chain with ASCII sprites
+ ║ • 'breed <pokemon1> <pokemon2>' - Check breeding compatibility and egg move potential                          ║
+║                                                                             ║
+║                                                                       ║
 ║ EXAMPLES:                                                                                                       ║
 ║ • 'tm gen 3' - All Gen 3 TM moves                                                                             ║
 ║ • 'tm gen 3 emerald' - Only Emerald TM moves                                                                  ║
@@ -140,6 +144,11 @@ class PokedexTerminal:
             self.handle_comparison_command(query)
             return True
         
+        if query_lower.startswith('breed'):
+            print("DEBUG: Breed command detected!") # DEBUG LINE
+            self.breeding_handler.handle_breeding_command(query)
+            return True
+
         # Route/Location Pokemon lookup
         if query_lower.startswith('route ') or any(query_lower.startswith(loc) for loc in ['victory road', 'safari zone', 'viridian forest', 'mount silver']):
             print("DEBUG: Route command detected!")  # DEBUG LINE
